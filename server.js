@@ -1,98 +1,91 @@
 const express = require("express");
-const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
 const { google } = require("googleapis");
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 app.use(express.static("public"));
 
-// ---------------- LOGIN ----------------
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
+// temp upload
+const upload = multer({ dest: "temp/" });
 
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-
-  if (username === "admin" && password === "1234") {
-    res.sendFile(path.join(__dirname, "public", "dashboard.html"));
-  } else {
-    res.send("❌ Invalid login");
-  }
-});
-
-// ---------------- GOOGLE DRIVE SETUP ----------------
+// 🔐 Google Drive Auth
 const auth = new google.auth.GoogleAuth({
-  keyFile: "credentials.json",
-  scopes: ["https://www.googleapis.com/auth/drive"],
+    keyFile: "credentials.json",
+    scopes: ["https://www.googleapis.com/auth/drive"]
 });
 
 const drive = google.drive({ version: "v3", auth });
 
-// ---------------- MULTER ----------------
-const upload = multer({ dest: "uploads/" });
+// 📁 IMPORTANT: your Drive folder ID here
+const FOLDER_ID = "1jFLN4paK-CTEEVHHrRuRKtU-ScNiFaUy";
 
-// ---------------- UPLOAD ----------------
+// 👉 Upload to Drive (inside folder)
 app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    const fileMetadata = {
-      name: req.file.originalname,
-      parents: ["1jFLN4paK-CTEEVHHrRuRKtU-ScNiFaUy"], // 🔥 change this
-    };
+    try {
+        const fileMetadata = {
+            name: req.file.originalname,
+            parents: [FOLDER_ID] // 🔥 important
+        };
 
-    const media = {
-      mimeType: req.file.mimetype,
-      body: fs.createReadStream(req.file.path),
-    };
+        const media = {
+            mimeType: req.file.mimetype,
+            body: fs.createReadStream(req.file.path)
+        };
 
-    const file = await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: "id",
-    });
+        await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: "id"
+        });
 
-    fs.unlinkSync(req.file.path);
+        fs.unlinkSync(req.file.path);
 
-    res.send({ message: "Uploaded", id: file.data.id });
-  } catch (err) {
-    res.status(500).send(err);
-  }
+        res.send("Uploaded ✔");
+    } catch (err) {
+        console.log(err);
+        res.send("Upload failed");
+    }
 });
 
-// ---------------- LIST FILES ----------------
+// 👉 List files only from that folder
 app.get("/files", async (req, res) => {
-  const response = await drive.files.list({
-    q: "'YOUR_FOLDER_ID' in parents and trashed=false",
-    fields: "files(id, name)",
-  });
+    try {
+        const response = await drive.files.list({
+            q: `'${FOLDER_ID}' in parents`,
+            fields: "files(id, name)"
+        });
 
-  res.json(response.data.files);
+        res.json(response.data.files);
+    } catch (err) {
+        console.log(err);
+        res.json([]);
+    }
 });
 
-// ---------------- DELETE ----------------
+// 👉 Delete file
 app.delete("/delete/:id", async (req, res) => {
-  await drive.files.delete({
-    fileId: req.params.id,
-  });
+    try {
+        await drive.files.delete({
+            fileId: req.params.id
+        });
 
-  res.send("Deleted");
+        res.send("Deleted ✔");
+    } catch (err) {
+        res.send("Delete failed");
+    }
 });
 
-// ---------------- DOWNLOAD ----------------
+// 👉 Download
 app.get("/download/:id", (req, res) => {
-  const fileId = req.params.id;
-  res.redirect(
-    `https://drive.google.com/uc?export=download&id=${fileId}`
-  );
+    res.redirect(`https://drive.google.com/uc?export=download&id=${req.params.id}`);
 });
 
-// ---------------- SERVER ----------------
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log("Server running on " + PORT);
+// 👉 Play video
+app.get("/video/:id", (req, res) => {
+    res.redirect(`https://drive.google.com/uc?export=preview&id=${req.params.id}`);
 });
+
+app.listen(PORT, () => console.log("Server running"));
