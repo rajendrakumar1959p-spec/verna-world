@@ -1,90 +1,102 @@
 const express = require("express");
 const multer = require("multer");
-const fs = require("fs");
+const bodyParser = require("body-parser");
 const path = require("path");
-const { google } = require("googleapis");
+const fs = require("fs");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
+// Login
+const USER = {
+    username: "admin",
+    password: "1234"
+};
+
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use("/uploads", express.static("uploads"));
 
-// Upload temp
-const upload = multer({ dest: "temp/" });
-
-// 🔐 Google Drive Auth
-const auth = new google.auth.GoogleAuth({
-    keyFile: "credentials.json",
-    scopes: ["https://www.googleapis.com/auth/drive"]
-});
-
-const drive = google.drive({ version: "v3", auth });
-
-// 👉 Upload to Drive
-app.post("/upload", upload.single("file"), async (req, res) => {
-    try {
-        const fileMetadata = {
-            name: req.file.originalname
-        };
-
-        const media = {
-            mimeType: req.file.mimetype,
-            body: fs.createReadStream(req.file.path)
-        };
-
-        const response = await drive.files.create({
-            resource: fileMetadata,
-            media: media,
-            fields: "id"
-        });
-
-        fs.unlinkSync(req.file.path);
-
-        res.send("Uploaded to Drive ✔");
-    } catch (err) {
-        console.log(err);
-        res.send("Upload failed");
+// Upload setup
+const storage = multer.diskStorage({
+    destination: "uploads/",
+    filename: (req, file, cb) => {
+        cb(null, file.originalname);
     }
 });
 
-// 👉 List files
-app.get("/files", async (req, res) => {
-    try {
-        const response = await drive.files.list({
-            pageSize: 20,
-            fields: "files(id, name)"
-        });
+const upload = multer({ storage });
 
-        res.json(response.data.files);
-    } catch (err) {
-        console.log(err);
-        res.json([]);
+// Login route
+app.post("/login", (req, res) => {
+    const { username, password } = req.body;
+
+    if (username === USER.username && password === USER.password) {
+        res.redirect("/dashboard.html");
+    } else {
+        res.send("Login Failed");
     }
 });
 
-// 👉 Delete file
-app.delete("/delete/:id", async (req, res) => {
-    try {
-        await drive.files.delete({
-            fileId: req.params.id
+// Upload
+app.post("/upload", upload.single("file"), (req, res) => {
+    res.redirect("/dashboard.html");
+});
+
+// Download
+app.get("/download/:filename", (req, res) => {
+    const file = path.join(__dirname, "uploads", req.params.filename);
+    res.download(file);
+});
+
+// 📂 Get ALL files (no filter)
+app.get("/files", (req, res) => {
+    const dirPath = path.join(__dirname, "uploads");
+
+    fs.readdir(dirPath, (err, files) => {
+        if (err) return res.json([]);
+        res.json(files);
+    });
+});
+
+// 🎬 Stream video (only works for mp4)
+app.get("/video/:filename", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.filename);
+
+    if (!fs.existsSync(filePath)) {
+        return res.send("File not found");
+    }
+
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+        const chunkSize = end - start + 1;
+        const file = fs.createReadStream(filePath, { start, end });
+
+        res.writeHead(206, {
+            "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+            "Accept-Ranges": "bytes",
+            "Content-Length": chunkSize,
+            "Content-Type": "video/mp4"
         });
 
-        res.send("Deleted");
-    } catch (err) {
-        res.send("Delete failed");
+        file.pipe(res);
+    } else {
+        res.writeHead(200, {
+            "Content-Length": fileSize,
+            "Content-Type": "video/mp4"
+        });
+
+        fs.createReadStream(filePath).pipe(res);
     }
 });
 
-// 👉 Download
-app.get("/download/:id", (req, res) => {
-    const url = `https://drive.google.com/uc?export=download&id=${req.params.id}`;
-    res.redirect(url);
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
 });
-
-// 👉 Play video
-app.get("/video/:id", (req, res) => {
-    const url = `https://drive.google.com/uc?export=preview&id=${req.params.id}`;
-    res.redirect(url);
-});
-
-app.listen(PORT, () => console.log("Server running"));
