@@ -73,7 +73,7 @@ iframe {
 
 <script>
 
-// Upload
+// Upload with progress
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
@@ -137,13 +137,8 @@ function play(id) {
 
 // Delete
 function deleteFile(id) {
-    document.getElementById("status").innerText = "Deleting...";
-
     fetch('/delete/' + id, { method: 'DELETE' })
-    .then(() => {
-        document.getElementById("status").innerText = "Deleted ✔";
-        setTimeout(() => location.reload(), 1000);
-    });
+    .then(() => location.reload());
 }
 
 </script>
