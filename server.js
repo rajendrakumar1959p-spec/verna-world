@@ -1,7 +1,6 @@
 const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
-const path = require("path");
 const { google } = require("googleapis");
 
 const app = express();
@@ -9,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-// temp upload
+// temp upload folder
 const upload = multer({ dest: "temp/" });
 
 // 🔐 Google Drive Auth
@@ -20,11 +19,15 @@ const auth = new google.auth.GoogleAuth({
 
 const drive = google.drive({ version: "v3", auth });
 
+// 📁 YOUR FOLDER ID (already correct)
+const FOLDER_ID = "1jFLN4paK-CTEEVHHrRuRKtU-ScNiFaUy";
+
 // 👉 Upload to Drive
 app.post("/upload", upload.single("file"), async (req, res) => {
     try {
         const fileMetadata = {
-            name: req.file.originalname
+            name: req.file.originalname,
+            parents: [FOLDER_ID]
         };
 
         const media = {
@@ -32,7 +35,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
             body: fs.createReadStream(req.file.path)
         };
 
-        const response = await drive.files.create({
+        await drive.files.create({
             resource: fileMetadata,
             media: media,
             fields: "id"
@@ -43,15 +46,15 @@ app.post("/upload", upload.single("file"), async (req, res) => {
         res.send("Uploaded ✔");
     } catch (err) {
         console.log(err);
-        res.send("Upload failed");
+        res.send("Upload failed ❌");
     }
 });
 
-// 👉 List Drive files
+// 👉 List files from folder
 app.get("/files", async (req, res) => {
     try {
         const response = await drive.files.list({
-            pageSize: 20,
+            q: `'${FOLDER_ID}' in parents`,
             fields: "files(id, name)"
         });
 
@@ -62,26 +65,26 @@ app.get("/files", async (req, res) => {
     }
 });
 
-// 👉 Delete
+// 👉 Delete file
 app.delete("/delete/:id", async (req, res) => {
     try {
         await drive.files.delete({
             fileId: req.params.id
         });
-        res.send("Deleted");
+        res.send("Deleted ✔");
     } catch (err) {
-        res.send("Delete failed");
+        res.send("Delete failed ❌");
     }
 });
 
-// 👉 Download
+// 👉 Download file
 app.get("/download/:id", (req, res) => {
     res.redirect(`https://drive.google.com/uc?export=download&id=${req.params.id}`);
 });
 
-// 👉 Play
+// 👉 Play video
 app.get("/video/:id", (req, res) => {
     res.redirect(`https://drive.google.com/uc?export=preview&id=${req.params.id}`);
 });
 
-app.listen(PORT, () => console.log("Server running"));
+app.listen(PORT, () => console.log("Server running on " + PORT));
