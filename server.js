@@ -5,11 +5,11 @@ const path = require("path");
 const { google } = require("googleapis");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-// Upload temp
+// temp upload
 const upload = multer({ dest: "temp/" });
 
 // 🔐 Google Drive Auth
@@ -40,14 +40,14 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
         fs.unlinkSync(req.file.path);
 
-        res.send("Uploaded to Drive ✔");
+        res.send("Uploaded ✔");
     } catch (err) {
         console.log(err);
         res.send("Upload failed");
     }
 });
 
-// 👉 List files
+// 👉 List Drive files
 app.get("/files", async (req, res) => {
     try {
         const response = await drive.files.list({
@@ -62,13 +62,12 @@ app.get("/files", async (req, res) => {
     }
 });
 
-// 👉 Delete file
+// 👉 Delete
 app.delete("/delete/:id", async (req, res) => {
     try {
         await drive.files.delete({
             fileId: req.params.id
         });
-
         res.send("Deleted");
     } catch (err) {
         res.send("Delete failed");
@@ -77,14 +76,12 @@ app.delete("/delete/:id", async (req, res) => {
 
 // 👉 Download
 app.get("/download/:id", (req, res) => {
-    const url = `https://drive.google.com/uc?export=download&id=${req.params.id}`;
-    res.redirect(url);
+    res.redirect(`https://drive.google.com/uc?export=download&id=${req.params.id}`);
 });
 
-// 👉 Play video
+// 👉 Play
 app.get("/video/:id", (req, res) => {
-    const url = `https://drive.google.com/uc?export=preview&id=${req.params.id}`;
-    res.redirect(url);
+    res.redirect(`https://drive.google.com/uc?export=preview&id=${req.params.id}`);
 });
 
 app.listen(PORT, () => console.log("Server running"));
