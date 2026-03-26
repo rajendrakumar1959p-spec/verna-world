@@ -3,29 +3,37 @@ const multer = require("multer");
 const bodyParser = require("body-parser");
 const path = require("path");
 const fs = require("fs");
+const { google } = require("googleapis");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// 🔥 YOUR DRIVE FOLDER ID
+const FOLDER_ID = "1jFLN4paK-CTEEVHHrRuRKtU-ScNiFaUy";
+
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 📁 Upload folder
-const upload = multer({ dest: "uploads/" });
+// 🔐 Auth
+const auth = new google.auth.GoogleAuth({
+    keyFile: "credentials.json",
+    scopes: ["https://www.googleapis.com/auth/drive"]
+});
 
-// 🔐 Login credentials
+const drive = google.drive({ version: "v3", auth });
+
+// 🔐 Login
 const USER = {
     username: "admin",
     password: "1234"
 };
 
-// 👉 Root → login page
+// Root
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-// 👉 Login check
+// Login
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
 
@@ -36,53 +44,77 @@ app.post("/login", (req, res) => {
     }
 });
 
-// 👉 Upload file
-app.post("/upload", upload.single("file"), (req, res) => {
-    const oldPath = req.file.path;
-    const newPath = "uploads/" + req.file.originalname;
+// 📤 Upload (Drive)
+const upload = multer({ dest: "temp/" });
 
-    fs.rename(oldPath, newPath, (err) => {
-        if (err) throw err;
+app.post("/upload", upload.single("file"), async (req, res) => {
+    try {
+        const fileMetadata = {
+            name: req.file.originalname,
+            parents: [FOLDER_ID]
+        };
+
+        const media = {
+            mimeType: req.file.mimetype,
+            body: fs.createReadStream(req.file.path)
+        };
+
+        const file = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: "id"
+        });
+
+        // make public
+        await drive.permissions.create({
+            fileId: file.data.id,
+            requestBody: {
+                role: "reader",
+                type: "anyone"
+            }
+        });
+
+        fs.unlinkSync(req.file.path);
+
         res.send("Uploaded ✔");
-    });
+    } catch (err) {
+        console.log(err);
+        res.send("Upload failed ❌");
+    }
 });
 
-// 👉 List files
-app.get("/files", (req, res) => {
-    fs.readdir("uploads", (err, files) => {
-        if (err) return res.json([]);
+// 📂 List files
+app.get("/files", async (req, res) => {
+    try {
+        const response = await drive.files.list({
+            q: `'${FOLDER_ID}' in parents`,
+            fields: "files(id, name)"
+        });
 
-        const fileList = files.map(file => ({
-            name: file
-        }));
-
-        res.json(fileList);
-    });
+        res.json(response.data.files);
+    } catch (err) {
+        res.json([]);
+    }
 });
 
-// 👉 Download file
-app.get("/download/:name", (req, res) => {
-    const filePath = path.join(__dirname, "uploads", req.params.name);
-    res.download(filePath);
+// ▶ Play
+app.get("/video/:id", (req, res) => {
+    res.redirect(`https://drive.google.com/uc?export=preview&id=${req.params.id}`);
 });
 
-// 👉 Play video
-app.get("/video/:name", (req, res) => {
-    const filePath = path.join(__dirname, "uploads", req.params.name);
-    res.sendFile(filePath);
+// ⬇ Download
+app.get("/download/:id", (req, res) => {
+    res.redirect(`https://drive.google.com/uc?export=download&id=${req.params.id}`);
 });
 
-// 👉 Delete file
-app.delete("/delete/:name", (req, res) => {
-    const filePath = path.join(__dirname, "uploads", req.params.name);
-
-    fs.unlink(filePath, (err) => {
-        if (err) return res.send("Delete failed ❌");
+// 🗑 Delete
+app.delete("/delete/:id", async (req, res) => {
+    try {
+        await drive.files.delete({ fileId: req.params.id });
         res.send("Deleted ✔");
-    });
+    } catch (err) {
+        res.send("Delete failed ❌");
+    }
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
-});
+app.listen(PORT, () => console.log("Server running on " + PORT));
