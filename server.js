@@ -27,7 +27,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Login route
+// Root fix
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+// Login
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
 
@@ -40,31 +45,39 @@ app.post("/login", (req, res) => {
 
 // Upload
 app.post("/upload", upload.single("file"), (req, res) => {
-    res.redirect("/dashboard.html");
+    res.send("Uploaded");
 });
 
-// Download
-app.get("/download/:filename", (req, res) => {
-    const file = path.join(__dirname, "uploads", req.params.filename);
-    res.download(file);
-});
-
-// 📂 Get ALL files (no filter)
+// Get files
 app.get("/files", (req, res) => {
-    const dirPath = path.join(__dirname, "uploads");
-
-    fs.readdir(dirPath, (err, files) => {
+    fs.readdir("uploads", (err, files) => {
         if (err) return res.json([]);
         res.json(files);
     });
 });
 
-// 🎬 Stream video (only works for mp4)
-app.get("/video/:filename", (req, res) => {
-    const filePath = path.join(__dirname, "uploads", req.params.filename);
+// Delete
+app.delete("/delete/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
+
+    fs.unlink(filePath, (err) => {
+        if (err) return res.send("Error deleting");
+        res.send("Deleted");
+    });
+});
+
+// Download
+app.get("/download/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
+    res.download(filePath);
+});
+
+// Video streaming
+app.get("/video/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
 
     if (!fs.existsSync(filePath)) {
-        return res.send("File not found");
+        return res.status(404).send("File not found");
     }
 
     const stat = fs.statSync(filePath);
@@ -73,8 +86,8 @@ app.get("/video/:filename", (req, res) => {
 
     if (range) {
         const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const start = Number(parts[0]);
+        const end = parts[1] ? Number(parts[1]) : fileSize - 1;
 
         const chunkSize = end - start + 1;
         const file = fs.createReadStream(filePath, { start, end });
