@@ -40,7 +40,7 @@ button {
     cursor: pointer;
 }
 
-iframe {
+video, iframe {
     margin-top: 20px;
     max-width: 90%;
     border-radius: 10px;
@@ -73,7 +73,7 @@ iframe {
 
 <script>
 
-// Upload with progress
+// 📤 Upload with progress
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
@@ -85,25 +85,32 @@ function uploadFile() {
 
     document.getElementById("progressBox").style.display = "block";
 
+    const startTime = Date.now();
+
     xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
             const percent = (e.loaded / e.total) * 100;
+
             document.getElementById("progressBar").style.width = percent + "%";
+
+            const time = (Date.now() - startTime) / 1000;
+            const speed = (e.loaded / 1024 / 1024 / time).toFixed(2);
+
             document.getElementById("status").innerText =
-                "Uploading: " + Math.round(percent) + "%";
+                `Uploading: ${Math.round(percent)}% | ${speed} MB/s`;
         }
     };
 
     xhr.onload = function() {
-        document.getElementById("status").innerText = "Upload Done ✔";
-        setTimeout(() => location.reload(), 1000);
+        document.getElementById("status").innerText = "✅ Upload to Drive Done";
+        setTimeout(() => location.reload(), 1500);
     };
 
     xhr.open("POST", "/upload", true);
     xhr.send(formData);
 }
 
-// Load files
+// 📂 Load files from Drive
 fetch('/files')
 .then(res => res.json())
 .then(data => {
@@ -129,16 +136,31 @@ fetch('/files')
     });
 });
 
-// Play video
+// 🎬 Play video
 function play(id) {
     document.getElementById("player").src =
-        "https://drive.google.com/uc?export=preview&id=" + id;
+    "https://drive.google.com/uc?export=preview&id=" + id;
 }
 
-// Delete
+// 🗑 Delete with animation
 function deleteFile(id) {
+    const status = document.getElementById("status");
+    status.innerText = "Deleting... ⏳";
+
+    let percent = 0;
+
+    const interval = setInterval(() => {
+        percent += 10;
+        status.innerText = "Deleting: " + percent + "%";
+        if (percent >= 90) clearInterval(interval);
+    }, 200);
+
     fetch('/delete/' + id, { method: 'DELETE' })
-    .then(() => location.reload());
+    .then(() => {
+        clearInterval(interval);
+        status.innerText = "🗑 Deleted from Drive";
+        setTimeout(() => location.reload(), 1000);
+    });
 }
 
 </script>
