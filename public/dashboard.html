@@ -1,108 +1,50 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Verna World</title>
+<h2>Upload File</h2>
 
-    <style>
-        body {
-            font-family: Arial;
-            background: #111;
-            color: white;
-            margin: 0;
-            text-align: center;
-        }
+<input type="file" id="fileInput">
+<button onclick="uploadFile()">Upload</button>
 
-        h1 {
-            background: black;
-            padding: 15px;
-        }
+<br><br>
 
-        .upload-box {
-            margin: 20px;
-        }
-
-        .movie-list {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .movie {
-            background: #222;
-            margin: 10px;
-            padding: 15px;
-            border-radius: 10px;
-            width: 180px;
-        }
-
-        .movie button {
-            margin-top: 5px;
-            width: 100%;
-        }
-
-        button {
-            padding: 8px;
-            border: none;
-            background: red;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        video {
-            margin-top: 20px;
-            max-width: 90%;
-        }
-    </style>
-</head>
-
-<body>
-
-<h1>🎬 VERNA WORLD</h1>
-
-<div class="upload-box">
-    <h2>Upload File</h2>
-
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <button type="submit">Upload</button>
-    </form>
+<div id="progressBox" style="width:300px; background:#333; margin:auto; display:none;">
+    <div id="progressBar" style="height:20px; width:0%; background:red;"></div>
 </div>
 
-<h2>Files</h2>
-
-<div class="movie-list" id="movieList"></div>
-
-<video id="player" controls></video>
+<p id="status"></p>
 
 <script>
+function uploadFile() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) return alert("Select a file");
 
-fetch('/files')
-.then(res => res.json())
-.then(data => {
-    const list = document.getElementById("movieList");
+    const formData = new FormData();
+    formData.append("file", file);
 
-    data.forEach(file => {
-        const div = document.createElement("div");
-        div.className = "movie";
+    const xhr = new XMLHttpRequest();
 
-        div.innerHTML = `
-            <p>${file}</p>
-            <button onclick="playVideo('${file}')">▶ Play</button>
-            <a href="/download/${file}">
-                <button>⬇ Download</button>
-            </a>
-        `;
+    document.getElementById("progressBox").style.display = "block";
 
-        list.appendChild(div);
-    });
-});
+    const startTime = new Date().getTime();
 
-function playVideo(name) {
-    document.getElementById("player").src = "/video/" + name;
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            document.getElementById("progressBar").style.width = percent + "%";
+            document.getElementById("status").innerText =
+                "Uploading: " + Math.round(percent) + "%";
+        }
+    };
+
+    xhr.onload = function() {
+        const endTime = new Date().getTime();
+        const seconds = ((endTime - startTime) / 1000).toFixed(2);
+
+        document.getElementById("status").innerText =
+            "✅ Upload Complete in " + seconds + " sec";
+
+        setTimeout(() => location.reload(), 1500);
+    };
+
+    xhr.open("POST", "/upload", true);
+    xhr.send(formData);
 }
-
 </script>
-
-</body>
-</html>
