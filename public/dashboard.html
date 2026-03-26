@@ -40,7 +40,7 @@ button {
     cursor: pointer;
 }
 
-video, iframe {
+iframe {
     margin-top: 20px;
     max-width: 90%;
     border-radius: 10px;
@@ -73,7 +73,7 @@ video, iframe {
 
 <script>
 
-// 📤 Upload with progress
+// Upload
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
@@ -102,7 +102,7 @@ function uploadFile() {
     };
 
     xhr.onload = function() {
-        document.getElementById("status").innerText = "✅ Upload to Drive Done";
+        document.getElementById("status").innerText = "✅ Upload Done";
         setTimeout(() => location.reload(), 1500);
     };
 
@@ -110,7 +110,7 @@ function uploadFile() {
     xhr.send(formData);
 }
 
-// 📂 Load files from Drive
+// Load files
 fetch('/files')
 .then(res => res.json())
 .then(data => {
@@ -136,29 +136,20 @@ fetch('/files')
     });
 });
 
-// 🎬 Play video
+// Play video (iframe)
 function play(id) {
     document.getElementById("player").src =
-    "https://drive.google.com/uc?export=preview&id=" + id;
+        "https://drive.google.com/uc?export=preview&id=" + id;
 }
 
-// 🗑 Delete with animation
+// Delete
 function deleteFile(id) {
     const status = document.getElementById("status");
-    status.innerText = "Deleting... ⏳";
-
-    let percent = 0;
-
-    const interval = setInterval(() => {
-        percent += 10;
-        status.innerText = "Deleting: " + percent + "%";
-        if (percent >= 90) clearInterval(interval);
-    }, 200);
+    status.innerText = "Deleting...";
 
     fetch('/delete/' + id, { method: 'DELETE' })
     .then(() => {
-        clearInterval(interval);
-        status.innerText = "🗑 Deleted from Drive";
+        status.innerText = "Deleted ✔";
         setTimeout(() => location.reload(), 1000);
     });
 }
