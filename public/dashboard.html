@@ -40,7 +40,7 @@ button {
     cursor: pointer;
 }
 
-video, iframe {
+video {
     margin-top: 20px;
     max-width: 90%;
     border-radius: 10px;
@@ -52,115 +52,70 @@ video, iframe {
 
 <h1>🎬 VERNA WORLD</h1>
 
-<h2>Upload to Google Drive</h2>
+<h2>Upload Movie (Local Only)</h2>
 
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
-<br><br>
-
-<div id="progressBox" style="width:300px; background:#333; margin:auto; display:none;">
-    <div id="progressBar" style="height:20px; width:0%; background:red;"></div>
-</div>
-
 <p id="status"></p>
 
-<h2>Drive Files</h2>
+<h2>Movies</h2>
 
 <div class="movie-list" id="movieList"></div>
 
-<iframe id="player" width="700" height="400" allow="autoplay"></iframe>
+<video id="player" controls></video>
 
 <script>
 
-// 📤 Upload with progress
+let movies = [];
+
+// 📤 Upload (local only)
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const url = URL.createObjectURL(file);
 
-    const xhr = new XMLHttpRequest();
+    movies.push({
+        name: file.name,
+        url: url
+    });
 
-    document.getElementById("progressBox").style.display = "block";
-
-    const startTime = Date.now();
-
-    xhr.upload.onprogress = function(e) {
-        if (e.lengthComputable) {
-            const percent = (e.loaded / e.total) * 100;
-
-            document.getElementById("progressBar").style.width = percent + "%";
-
-            const time = (Date.now() - startTime) / 1000;
-            const speed = (e.loaded / 1024 / 1024 / time).toFixed(2);
-
-            document.getElementById("status").innerText =
-                `Uploading: ${Math.round(percent)}% | ${speed} MB/s`;
-        }
-    };
-
-    xhr.onload = function() {
-        document.getElementById("status").innerText = "✅ Upload to Drive Done";
-        setTimeout(() => location.reload(), 1500);
-    };
-
-    xhr.open("POST", "/upload", true);
-    xhr.send(formData);
+    document.getElementById("status").innerText = "✅ Uploaded (Local)";
+    displayMovies();
 }
 
-// 📂 Load files from Drive
-fetch('/files')
-.then(res => res.json())
-.then(data => {
+// 📂 Show movies
+function displayMovies() {
     const list = document.getElementById("movieList");
+    list.innerHTML = "";
 
-    data.forEach(file => {
+    movies.forEach((file, index) => {
         const div = document.createElement("div");
         div.className = "movie";
 
         div.innerHTML = `
             <p>${file.name}</p>
 
-            <button onclick="play('${file.id}')">▶ Play</button>
+            <button onclick="play(${index})">▶ Play</button>
 
-            <a href="/download/${file.id}">
-                <button>⬇ Download</button>
-            </a>
-
-            <button onclick="deleteFile('${file.id}')">🗑 Delete</button>
+            <button onclick="deleteFile(${index})">🗑 Delete</button>
         `;
 
         list.appendChild(div);
     });
-});
-
-// 🎬 Play video
-function play(id) {
-    document.getElementById("player").src =
-    "https://drive.google.com/uc?export=preview&id=" + id;
 }
 
-// 🗑 Delete with animation
-function deleteFile(id) {
-    const status = document.getElementById("status");
-    status.innerText = "Deleting... ⏳";
+// 🎬 Play video
+function play(index) {
+    document.getElementById("player").src = movies[index].url;
+}
 
-    let percent = 0;
-
-    const interval = setInterval(() => {
-        percent += 10;
-        status.innerText = "Deleting: " + percent + "%";
-        if (percent >= 90) clearInterval(interval);
-    }, 200);
-
-    fetch('/delete/' + id, { method: 'DELETE' })
-    .then(() => {
-        clearInterval(interval);
-        status.innerText = "🗑 Deleted from Drive";
-        setTimeout(() => location.reload(), 1000);
-    });
+// 🗑 Delete
+function deleteFile(index) {
+    movies.splice(index, 1);
+    document.getElementById("status").innerText = "🗑 Deleted";
+    displayMovies();
 }
 
 </script>
