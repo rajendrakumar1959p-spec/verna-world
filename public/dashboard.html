@@ -1,3 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Verna World</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #111;
+    color: white;
+    text-align: center;
+}
+
+h1 {
+    background: black;
+    padding: 15px;
+}
+
+.movie-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.movie {
+    background: #222;
+    margin: 10px;
+    padding: 15px;
+    border-radius: 10px;
+    width: 200px;
+}
+
+button {
+    padding: 8px;
+    margin-top: 5px;
+    background: red;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+video {
+    margin-top: 20px;
+    max-width: 90%;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎬 VERNA WORLD</h1>
+
 <h2>Upload File</h2>
 
 <input type="file" id="fileInput">
@@ -11,7 +64,15 @@
 
 <p id="status"></p>
 
+<h2>Files</h2>
+
+<div class="movie-list" id="movieList"></div>
+
+<video id="player" controls></video>
+
 <script>
+
+// 📤 Upload with progress
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select a file");
@@ -47,4 +108,35 @@ function uploadFile() {
     xhr.open("POST", "/upload", true);
     xhr.send(formData);
 }
+
+// 📂 Load files
+fetch('/files')
+.then(res => res.json())
+.then(data => {
+    const list = document.getElementById("movieList");
+
+    data.forEach(file => {
+        const div = document.createElement("div");
+        div.className = "movie";
+
+        div.innerHTML = `
+            <p>${file}</p>
+            <button onclick="playVideo('${file}')">▶ Play</button>
+            <a href="/download/${file}">
+                <button>⬇ Download</button>
+            </a>
+        `;
+
+        list.appendChild(div);
+    });
+});
+
+// 🎬 Play video
+function playVideo(name) {
+    document.getElementById("player").src = "/video/" + name;
+}
+
 </script>
+
+</body>
+</html>
