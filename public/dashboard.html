@@ -85,25 +85,18 @@ function uploadFile() {
 
     document.getElementById("progressBox").style.display = "block";
 
-    const startTime = Date.now();
-
     xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
             const percent = (e.loaded / e.total) * 100;
-
             document.getElementById("progressBar").style.width = percent + "%";
-
-            const time = (Date.now() - startTime) / 1000;
-            const speed = (e.loaded / 1024 / 1024 / time).toFixed(2);
-
             document.getElementById("status").innerText =
-                `Uploading: ${Math.round(percent)}% | ${speed} MB/s`;
+                "Uploading: " + Math.round(percent) + "%";
         }
     };
 
     xhr.onload = function() {
-        document.getElementById("status").innerText = "✅ Upload Done";
-        setTimeout(() => location.reload(), 1500);
+        document.getElementById("status").innerText = "Upload Done ✔";
+        setTimeout(() => location.reload(), 1000);
     };
 
     xhr.open("POST", "/upload", true);
@@ -136,7 +129,7 @@ fetch('/files')
     });
 });
 
-// Play video (iframe)
+// Play video
 function play(id) {
     document.getElementById("player").src =
         "https://drive.google.com/uc?export=preview&id=" + id;
@@ -144,12 +137,11 @@ function play(id) {
 
 // Delete
 function deleteFile(id) {
-    const status = document.getElementById("status");
-    status.innerText = "Deleting...";
+    document.getElementById("status").innerText = "Deleting...";
 
     fetch('/delete/' + id, { method: 'DELETE' })
     .then(() => {
-        status.innerText = "Deleted ✔";
+        document.getElementById("status").innerText = "Deleted ✔";
         setTimeout(() => location.reload(), 1000);
     });
 }
