@@ -1,124 +1,69 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Verna World</title>
-
-<style>
-body {
-    font-family: Arial;
-    background: #111;
-    color: white;
-    text-align: center;
-}
-
-h1 {
-    background: black;
-    padding: 15px;
-}
-
-.movie-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.movie {
-    background: #222;
-    margin: 10px;
-    padding: 15px;
-    border-radius: 10px;
-    width: 220px;
-}
-
-button {
-    padding: 8px;
-    margin-top: 5px;
-    background: red;
-    border: none;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-video {
-    margin-top: 20px;
-    max-width: 90%;
-    border-radius: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<h1>🎬 VERNA WORLD</h1>
-
-<h2>Upload Movie (Local Only)</h2>
-
-<input type="file" id="fileInput">
-<button onclick="uploadFile()">Upload</button>
-
-<p id="status"></p>
-
-<h2>Movies</h2>
-
-<div class="movie-list" id="movieList"></div>
-
-<video id="player" controls></video>
-
 <script>
 
-let movies = [];
-
-// 📤 Upload (local only)
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
 
-    const url = URL.createObjectURL(file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-    movies.push({
-        name: file.name,
-        url: url
-    });
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/upload");
 
-    document.getElementById("status").innerText = "✅ Uploaded (Local)";
-    displayMovies();
+    xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            document.getElementById("progress").innerText = percent + "%";
+        }
+    };
+
+    xhr.onload = function () {
+        document.getElementById("status").innerText = "✅ Uploaded";
+        loadMovies();
+    };
+
+    xhr.send(formData);
 }
 
-// 📂 Show movies
-function displayMovies() {
-    const list = document.getElementById("movieList");
-    list.innerHTML = "";
+function loadMovies() {
+    fetch("/files")
+        .then(res => res.json())
+        .then(files => {
+            const list = document.getElementById("movieList");
+            list.innerHTML = "";
 
-    movies.forEach((file, index) => {
-        const div = document.createElement("div");
-        div.className = "movie";
+            files.forEach(file => {
+                const div = document.createElement("div");
+                div.className = "movie";
 
-        div.innerHTML = `
-            <p>${file.name}</p>
+                div.innerHTML = `
+                    <p>${file.name}</p>
 
-            <button onclick="play(${index})">▶ Play</button>
+                    <button onclick="play('${file.id}')">▶ Play</button>
 
-            <button onclick="deleteFile(${index})">🗑 Delete</button>
-        `;
+                    <button onclick="download('${file.id}')">⬇ Download</button>
 
-        list.appendChild(div);
-    });
+                    <button onclick="deleteFile('${file.id}')">🗑 Delete</button>
+                `;
+
+                list.appendChild(div);
+            });
+        });
 }
 
-// 🎬 Play video
-function play(index) {
-    document.getElementById("player").src = movies[index].url;
+function play(id) {
+    document.getElementById("player").src = "/video/" + id;
 }
 
-// 🗑 Delete
-function deleteFile(index) {
-    movies.splice(index, 1);
-    document.getElementById("status").innerText = "🗑 Deleted";
-    displayMovies();
+function download(id) {
+    window.open("/download/" + id);
 }
+
+function deleteFile(id) {
+    fetch("/delete/" + id, { method: "DELETE" })
+        .then(() => loadMovies());
+}
+
+loadMovies();
 
 </script>
-
-</body>
-</html>
