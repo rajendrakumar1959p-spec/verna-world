@@ -27,7 +27,7 @@ h1 {
     margin: 10px;
     padding: 15px;
     border-radius: 10px;
-    width: 200px;
+    width: 220px;
 }
 
 button {
@@ -40,9 +40,10 @@ button {
     cursor: pointer;
 }
 
-video {
+video, iframe {
     margin-top: 20px;
     max-width: 90%;
+    border-radius: 10px;
 }
 </style>
 </head>
@@ -51,7 +52,7 @@ video {
 
 <h1>🎬 VERNA WORLD</h1>
 
-<h2>Upload File</h2>
+<h2>Upload to Google Drive</h2>
 
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
@@ -64,15 +65,15 @@ video {
 
 <p id="status"></p>
 
-<h2>Files</h2>
+<h2>Drive Files</h2>
 
 <div class="movie-list" id="movieList"></div>
 
-<video id="player" controls></video>
+<iframe id="player" width="700" height="400" allow="autoplay"></iframe>
 
 <script>
 
-// Upload with progress
+// 📤 Upload with progress
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("Select file");
@@ -101,7 +102,7 @@ function uploadFile() {
     };
 
     xhr.onload = function() {
-        document.getElementById("status").innerText = "✅ Upload Done";
+        document.getElementById("status").innerText = "✅ Upload to Drive Done";
         setTimeout(() => location.reload(), 1500);
     };
 
@@ -109,7 +110,7 @@ function uploadFile() {
     xhr.send(formData);
 }
 
-// Load files
+// 📂 Load files from Drive
 fetch('/files')
 .then(res => res.json())
 .then(data => {
@@ -120,25 +121,29 @@ fetch('/files')
         div.className = "movie";
 
         div.innerHTML = `
-            <p>${file}</p>
-            <button onclick="playVideo('${file}')">▶ Play</button>
-            <a href="/download/${file}">
+            <p>${file.name}</p>
+
+            <button onclick="play('${file.id}')">▶ Play</button>
+
+            <a href="/download/${file.id}">
                 <button>⬇ Download</button>
             </a>
-            <button onclick="deleteFile('${file}')">🗑 Delete</button>
+
+            <button onclick="deleteFile('${file.id}')">🗑 Delete</button>
         `;
 
         list.appendChild(div);
     });
 });
 
-// Play video
-function playVideo(name) {
-    document.getElementById("player").src = "/video/" + name;
+// 🎬 Play video
+function play(id) {
+    document.getElementById("player").src =
+    "https://drive.google.com/uc?export=preview&id=" + id;
 }
 
-// Delete with animation
-function deleteFile(name) {
+// 🗑 Delete with animation
+function deleteFile(id) {
     const status = document.getElementById("status");
     status.innerText = "Deleting... ⏳";
 
@@ -150,10 +155,10 @@ function deleteFile(name) {
         if (percent >= 90) clearInterval(interval);
     }, 200);
 
-    fetch('/delete/' + name, { method: 'DELETE' })
+    fetch('/delete/' + id, { method: 'DELETE' })
     .then(() => {
         clearInterval(interval);
-        status.innerText = "🗑 Deleted";
+        status.innerText = "🗑 Deleted from Drive";
         setTimeout(() => location.reload(), 1000);
     });
 }
