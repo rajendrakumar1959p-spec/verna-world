@@ -72,10 +72,10 @@ video {
 
 <script>
 
-// 📤 Upload with progress
+// Upload with progress
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
-    if (!file) return alert("Select a file");
+    if (!file) return alert("Select file");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -84,24 +84,24 @@ function uploadFile() {
 
     document.getElementById("progressBox").style.display = "block";
 
-    const startTime = new Date().getTime();
+    const startTime = Date.now();
 
     xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
             const percent = (e.loaded / e.total) * 100;
+
             document.getElementById("progressBar").style.width = percent + "%";
+
+            const time = (Date.now() - startTime) / 1000;
+            const speed = (e.loaded / 1024 / 1024 / time).toFixed(2);
+
             document.getElementById("status").innerText =
-                "Uploading: " + Math.round(percent) + "%";
+                `Uploading: ${Math.round(percent)}% | ${speed} MB/s`;
         }
     };
 
     xhr.onload = function() {
-        const endTime = new Date().getTime();
-        const seconds = ((endTime - startTime) / 1000).toFixed(2);
-
-        document.getElementById("status").innerText =
-            "✅ Upload Complete in " + seconds + " sec";
-
+        document.getElementById("status").innerText = "✅ Upload Done";
         setTimeout(() => location.reload(), 1500);
     };
 
@@ -109,7 +109,7 @@ function uploadFile() {
     xhr.send(formData);
 }
 
-// 📂 Load files
+// Load files
 fetch('/files')
 .then(res => res.json())
 .then(data => {
@@ -125,15 +125,37 @@ fetch('/files')
             <a href="/download/${file}">
                 <button>⬇ Download</button>
             </a>
+            <button onclick="deleteFile('${file}')">🗑 Delete</button>
         `;
 
         list.appendChild(div);
     });
 });
 
-// 🎬 Play video
+// Play video
 function playVideo(name) {
     document.getElementById("player").src = "/video/" + name;
+}
+
+// Delete with animation
+function deleteFile(name) {
+    const status = document.getElementById("status");
+    status.innerText = "Deleting... ⏳";
+
+    let percent = 0;
+
+    const interval = setInterval(() => {
+        percent += 10;
+        status.innerText = "Deleting: " + percent + "%";
+        if (percent >= 90) clearInterval(interval);
+    }, 200);
+
+    fetch('/delete/' + name, { method: 'DELETE' })
+    .then(() => {
+        clearInterval(interval);
+        status.innerText = "🗑 Deleted";
+        setTimeout(() => location.reload(), 1000);
+    });
 }
 
 </script>
