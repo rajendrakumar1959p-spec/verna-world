@@ -7,102 +7,82 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Login
+// Middleware
+app.use(express.static("public"));
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// 📁 Upload folder
+const upload = multer({ dest: "uploads/" });
+
+// 🔐 Login credentials
 const USER = {
     username: "admin",
     password: "1234"
 };
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static("public"));
-app.use("/uploads", express.static("uploads"));
-
-// Upload setup
-const storage = multer.diskStorage({
-    destination: "uploads/",
-    filename: (req, file, cb) => {
-        cb(null, file.originalname);
-    }
+// 👉 Root → login page
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-const upload = multer({ storage });
-
-// Login route
+// 👉 Login check
 app.post("/login", (req, res) => {
     const { username, password } = req.body;
 
     if (username === USER.username && password === USER.password) {
         res.redirect("/dashboard.html");
     } else {
-        res.send("Login Failed");
+        res.send("❌ Invalid Login");
     }
 });
 
-// Upload
+// 👉 Upload file
 app.post("/upload", upload.single("file"), (req, res) => {
-    res.redirect("/dashboard.html");
-});
+    const oldPath = req.file.path;
+    const newPath = "uploads/" + req.file.originalname;
 
-// Download
-app.get("/download/:filename", (req, res) => {
-    const file = path.join(__dirname, "uploads", req.params.filename);
-    res.download(file);
-});
-
-// 📂 Get ALL files (no filter)
-app.get("/files", (req, res) => {
-    const dirPath = path.join(__dirname, "uploads");
-
-    fs.readdir(dirPath, (err, files) => {
-        if (err) return res.json([]);
-        res.json(files);
+    fs.rename(oldPath, newPath, (err) => {
+        if (err) throw err;
+        res.send("Uploaded ✔");
     });
 });
 
-// 🎬 Stream video (only works for mp4)
-app.get("/video/:filename", (req, res) => {
-    const filePath = path.join(__dirname, "uploads", req.params.filename);
+// 👉 List files
+app.get("/files", (req, res) => {
+    fs.readdir("uploads", (err, files) => {
+        if (err) return res.json([]);
 
-    if (!fs.existsSync(filePath)) {
-        return res.send("File not found");
-    }
+        const fileList = files.map(file => ({
+            name: file
+        }));
 
-    const stat = fs.statSync(filePath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-
-    if (range) {
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-
-        const chunkSize = end - start + 1;
-        const file = fs.createReadStream(filePath, { start, end });
-
-        res.writeHead(206, {
-            "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-            "Accept-Ranges": "bytes",
-            "Content-Length": chunkSize,
-            "Content-Type": "video/mp4"
-        });
-
-        file.pipe(res);
-    } else {
-        res.writeHead(200, {
-            "Content-Length": fileSize,
-            "Content-Type": "video/mp4"
-        });
-
-        fs.createReadStream(filePath).pipe(res);
-    }
+        res.json(fileList);
+    });
 });
 
+// 👉 Download file
+app.get("/download/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
+    res.download(filePath);
+});
+
+// 👉 Play video
+app.get("/video/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
+    res.sendFile(filePath);
+});
+
+// 👉 Delete file
+app.delete("/delete/:name", (req, res) => {
+    const filePath = path.join(__dirname, "uploads", req.params.name);
+
+    fs.unlink(filePath, (err) => {
+        if (err) return res.send("Delete failed ❌");
+        res.send("Deleted ✔");
+    });
+});
+
+// Start server
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
-const path = require("path");
-
-// root route
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "login.html"));
+    console.log("Server running on port " + PORT);
 });
