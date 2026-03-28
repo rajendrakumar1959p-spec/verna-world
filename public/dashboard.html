@@ -1,69 +1,41 @@
-<script>
+const express = require("express");
+const multer = require("multer");
+const cors = require("cors");
+const fs = require("fs");
 
-function uploadFile() {
-    const file = document.getElementById("fileInput").files[0];
-    if (!file) return alert("Select file");
+const app = express();
+app.use(cors());
 
-    const formData = new FormData();
-    formData.append("file", file);
+const upload = multer({ dest: "uploads/" });
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/upload");
+let files = [];
 
-    xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            document.getElementById("progress").innerText = percent + "%";
-        }
+app.post("/upload", upload.single("file"), (req, res) => {
+    const file = {
+        id: req.file.filename,
+        name: req.file.originalname
     };
+    files.push(file);
+    res.send("Uploaded");
+});
 
-    xhr.onload = function () {
-        document.getElementById("status").innerText = "✅ Uploaded";
-        loadMovies();
-    };
+app.get("/files", (req, res) => {
+    res.json(files);
+});
 
-    xhr.send(formData);
-}
+app.get("/video/:id", (req, res) => {
+    res.sendFile(__dirname + "/uploads/" + req.params.id);
+});
 
-function loadMovies() {
-    fetch("/files")
-        .then(res => res.json())
-        .then(files => {
-            const list = document.getElementById("movieList");
-            list.innerHTML = "";
+app.get("/download/:id", (req, res) => {
+    res.download(__dirname + "/uploads/" + req.params.id);
+});
 
-            files.forEach(file => {
-                const div = document.createElement("div");
-                div.className = "movie";
+app.delete("/delete/:id", (req, res) => {
+    const id = req.params.id;
+    files = files.filter(f => f.id !== id);
+    fs.unlinkSync("uploads/" + id);
+    res.send("Deleted");
+});
 
-                div.innerHTML = `
-                    <p>${file.name}</p>
-
-                    <button onclick="play('${file.id}')">▶ Play</button>
-
-                    <button onclick="download('${file.id}')">⬇ Download</button>
-
-                    <button onclick="deleteFile('${file.id}')">🗑 Delete</button>
-                `;
-
-                list.appendChild(div);
-            });
-        });
-}
-
-function play(id) {
-    document.getElementById("player").src = "/video/" + id;
-}
-
-function download(id) {
-    window.open("/download/" + id);
-}
-
-function deleteFile(id) {
-    fetch("/delete/" + id, { method: "DELETE" })
-        .then(() => loadMovies());
-}
-
-loadMovies();
-
-</script>
+app.listen(3000, () => console.log("Server running on 3000"));
