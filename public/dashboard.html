@@ -63,7 +63,7 @@
 
 <script>
 
-const BASE_URL = "https://verna-world.onrender.com"; // 🔥 IMPORTANT
+const BASE_URL = ""; // same server
 
 function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
@@ -88,7 +88,7 @@ function uploadFile() {
     };
 
     xhr.onerror = function () {
-        document.getElementById("status").innerText = "❌ Upload Failed";
+        document.getElementById("status").innerText = "❌ Upload failed";
     };
 
     xhr.send(formData);
@@ -120,7 +120,7 @@ function loadMovies() {
         })
         .catch(err => {
             console.error(err);
-            document.body.innerHTML = "❌ Backend not responding";
+            document.body.innerHTML = "❌ Server not responding";
         });
 }
 
@@ -137,7 +137,7 @@ function deleteFile(id) {
         .then(() => loadMovies());
 }
 
-// 🔥 Render sleep fix
+// Render sleep fix
 setTimeout(loadMovies, 2000);
 
 </script>
